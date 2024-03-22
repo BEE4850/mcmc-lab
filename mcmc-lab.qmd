@@ -1,0 +1,82 @@
+---
+title: "Using Probabilistic Programming Languages for Bayesian Inference"
+format: 
+    html:
+        fig-format: svg
+    pdf: 
+        keep-tex: true
+        fig-format: svg 
+        include-in-header: 
+            text: |
+                \usepackage{fvextra}
+                \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+        include-before-body:
+            text: |
+                \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+                showspaces = false,
+                showtabs = false,
+                breaksymbolleft={},
+                breaklines
+                % Note: setting commandchars=\\\{\} here will cause an error 
+                }
+    ipynb:
+        execute:
+            eval: true
+jupyter: julia-1.9
+format-links: [pdf]
+freeze: false
+---
+
+## Package Loading
+
+```{julia}
+Pkg.activate(@__DIR__)
+Pkg.instantiate()
+
+using CSV
+using DataFrames
+using Plots
+```
+
+## Overview
+
+In this lab, you will use a probabilistic programming language to fit a linear model for monthly mean tide gauge data from the [Sewell's Point, VA tide gauge](https://tidesandcurrents.noaa.gov/waterlevels.html?id=8638610) from 1927 through 2022, obtained from the [Permanent Service for Mean Sea Level](https://psmsl.org/data/obtaining/stations/299.php). The data (in `data/norfolk-monthly-tide-data.txt`) has been slightly cleaned by setting dates to the `yyyy-mm` format. We've left missing values as `-99999`; make sure to fix those as appropriate for your programming language.
+
+First, let's load the data. In Julia, we will replace `-99999` with `missing`.
+
+```{julia}
+#| output: true
+#| echo: true
+
+tide_dat = CSV.read("data/norfolk-monthly-tide-data.txt", DataFrame)
+# replace -99999 with missing
+tide_dat.gauge = ifelse.(tide_dat.gauge .== -99999, missing, tide_dat.gauge)
+```
+
+Now let's plot the data.
+
+```{julia}
+#| label: fig-data-plot
+#| fig-cap: "Plotted tide gauge data"
+#| fig-align: center
+
+scatter(tide_dat.datetime, tide_dat.gauge, xlabel="Month", ylabel="Monthly Mean Sea Level (mm)", legend=false)
+```
+
+We would like to quantify the uncertainty in the time-trend of this local sea level increase (which includes global mean sea level rise but also more local effects, such as subsidence). The plot in @fig-data-plot looks roughly linear, so let's use the following model (assuming the errors are independent and identically-distributed for simplicity):
+
+\begin{equation*}
+\begin{aligned}
+y(t) &= \alpha + \beta t + \varepsilon \\
+\varepsilon &\sim \mathcal{N}(0, \sigma).
+\end{aligned}
+\label{eq-model}
+\end{equation*}
+
+The lab involves the following steps:
+
+1. First, write a model for the regression in \eqref{eq-model} in the probabilistic programming language of your choice. You'll need to pick some priors for $\alpha$, $\beta$, and $\sigma$. 
+2. Sample from the posterior with four chains (for convergence diagnostics). 
+3. Evaluate convergence. How many iterations did you use? What is the effective sample size?
+4. Plot the posterior distributions. In particular, we are interested in uncertainty in the $\beta$ coefficient, which reflects the mean increase in sea-level rise over time in mm/months. 
+5. Generate hindcasts by sampling from the posterior distribution and simulating data. If you plot the 95% posterior predictive distribution and the data, how does it look?
